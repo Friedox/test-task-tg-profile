@@ -8,6 +8,7 @@
     frontend_dir: "{{ project_dir }}/frontend"
     backend_dir: "{{ project_dir }}/backend"
     bot_dir: "{{ project_dir }}/bot"
+    nginx_container: "telegram_profile_nginx"
 
   tasks:
     - name: Обновляем APT и ставим зависимости
@@ -81,13 +82,30 @@
         dest: "{{ project_dir }}/.env"
         mode: '0600'
 
-    - name: Получаем SSL сертификат от Let's Encrypt
-      command: >
-        certbot certonly --nginx -d {{ domain_name }} -d www.{{ domain_name }} --non-interactive --agree-tos -m {{ email }}
-      args:
-        creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+    - name: Останавливаем nginx контейнер перед выдачей сертификата
+      docker_container:
+        name: "{{ nginx_container }}"
+        state: stopped
+      ignore_errors: yes
 
-    - name: Создаем симлинки на сертификаты для nginx
+    - name: Получаем/обновляем SSL сертификат от Let's Encrypt
+      command: >
+        certbot certonly --standalone
+        --preferred-challenges http
+        -d {{ domain_name }} -d www.{{ domain_name }}
+        --agree-tos --email {{ email }} --non-interactive --force-renewal
+      register: certbot_result
+
+    - name: Показываем вывод certbot
+      debug:
+        var: certbot_result.stdout_lines
+
+    - name: Запускаем nginx контейнер
+      docker_container:
+        name: "{{ nginx_container }}"
+        state: started
+
+    - name: Создаем симлинки на сертификаты для Nginx
       file:
         src: "/etc/letsencrypt/live/{{ domain_name }}/{{ item }}"
         dest: "{{ ssl_dir }}/{{ item }}"
@@ -97,7 +115,14 @@
         - fullchain.pem
         - privkey.pem
 
-    - name: Запускаем docker compose up -d --build
+    - name: Перезапускаем проект
       command: docker compose up -d --build
       args:
         chdir: "{{ project_dir }}"
+
+    - name: Настраиваем автоматическое обновление сертификатов через cron
+      cron:
+        name: "Auto renew SSL and restart nginx"
+        minute: "0"
+        hour: "3"
+        job: "docker stop {{ nginx_container }} && certbot renew --standalone && docker start {{ nginx_container }}"
