@@ -9,7 +9,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5432:5432" # Можно убрать, если база доступна только в сети Docker
 
   bot:
     build:
@@ -28,24 +28,26 @@ services:
       - ./backend/.env
     depends_on:
       - db
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     restart: unless-stopped
 
   frontend:
     build: ./frontend
     container_name: telegram_profile_frontend
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     restart: unless-stopped
 
   nginx:
     image: nginx:stable-alpine
     container_name: telegram_profile_nginx
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     depends_on:
       - backend
       - frontend

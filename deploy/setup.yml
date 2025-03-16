@@ -1,14 +1,14 @@
 - hosts: project_server
   become: yes
   vars:
-    project_dir: "/home/ubuntu/test-task-tg-profile"
+    project_dir: "/root/test-task-tg-profile"
     ssl_dir: "{{ project_dir }}/ssl"
     frontend_dir: "{{ project_dir }}/frontend"
     backend_dir: "{{ project_dir }}/backend"
     bot_dir: "{{ project_dir }}/bot"
 
   tasks:
-    - name: Обновляем apt и ставим зависимости
+    - name: Обновляем APT и ставим зависимости
       apt:
         update_cache: yes
         name:
@@ -16,32 +16,66 @@
           - curl
           - gnupg
           - lsb-release
-          - nginx
           - certbot
-          - python3-certbot-nginx
           - openssl
         state: present
 
-    - name: Устанавливаем Docker
-      apt:
-        name:
-          - docker.io
-          - docker-compose
+    - name: Добавляем Docker GPG ключ
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
         state: present
+
+    - name: Добавляем Docker репозиторий
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+        state: present
+
+    - name: Устанавливаем Docker и Docker Compose CLI (plugin)
+      apt:
+        update_cache: yes
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+
+    - name: Убеждаемся, что Docker daemon запущен и в автозагрузке
+      service:
+        name: docker
+        state: started
+        enabled: true
 
     - name: Клонируем проект
       git:
-        repo: "git@github.com:Friedox/test-task-tg-profile.git"
+        repo: "https://github.com/Friedox/test-task-tg-profile.git"
         dest: "{{ project_dir }}"
         version: "main"
         force: yes
         accept_hostkey: yes
-        key_file: "/root/.ssh/id_ed25519"
 
-    - name: Копируем ENV файлы
+    - name: Копируем backend .env
       copy:
-        src: ./envs/
-        dest: "{{ project_dir }}/"
+        src: ../backend/.env
+        dest: "{{ backend_dir }}/.env"
+        mode: '0600'
+
+    - name: Копируем frontend .env
+      copy:
+        src: ../frontend/.env
+        dest: "{{ frontend_dir }}/.env"
+        mode: '0600'
+
+    - name: Копируем bot .env
+      copy:
+        src: ../bot/.env
+        dest: "{{ bot_dir }}/.env"
+        mode: '0600'
+
+    - name: Копируем общий .env
+      copy:
+        src: ../.env
+        dest: "{{ project_dir }}/.env"
         mode: '0600'
 
     - name: Создаем папку для самоподписанных сертификатов
@@ -50,7 +84,7 @@
         state: directory
         mode: '0755'
 
-    - name: Генерим самоподписанные сертификаты для фронта
+    - name: Генерим самоподписанные SSL сертификаты для фронта
       command: >
         openssl req -x509 -nodes -days 365 -newkey rsa:2048
         -keyout {{ ssl_dir }}/frontend-selfsigned.key
@@ -59,24 +93,24 @@
       args:
         creates: "{{ ssl_dir }}/frontend-selfsigned.crt"
 
-    - name: Копируем Nginx конфиг для фронта
-      template:
-        src: nginx-frontend.conf.j2
-        dest: /etc/nginx/sites-available/frontend.conf
+#    - name: Копируем Nginx конфиг для фронта
+#      template:
+#        src: nginx-frontend.conf.j2
+#        dest: /etc/nginx/sites-available/frontend.conf
+#
+#    - name: Включаем конфиг Nginx
+#      file:
+#        src: /etc/nginx/sites-available/frontend.conf
+#        dest: /etc/nginx/sites-enabled/frontend.conf
+#        state: link
+#        force: yes
+#
+#    - name: Перезапускаем Nginx
+#      service:
+#        name: nginx
+#        state: restarted
 
-    - name: Включаем Nginx конфиг
-      file:
-        src: /etc/nginx/sites-available/frontend.conf
-        dest: /etc/nginx/sites-enabled/frontend.conf
-        state: link
-        force: yes
-
-    - name: Перезапускаем Nginx
-      service:
-        name: nginx
-        state: restarted
-
-    - name: Запускаем docker compose
+    - name: Запускаем docker compose up -d --build
       command: docker compose up -d --build
       args:
         chdir: "{{ project_dir }}"
