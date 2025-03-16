@@ -1,36 +1,49 @@
 <template>
   <router-view v-if="ready" />
+  <div v-else class="flex items-center justify-center h-screen">
+    <p class="text-xl">Loading...</p>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useUserStore } from './store/user'
-import { useRouter } from 'vue-router'
+  import { ref, onMounted } from 'vue'
+  import { useUserStore } from './store/user'
+  import { useRouter } from 'vue-router'
 
-const router = useRouter()
-const store = useUserStore()
-const ready = ref(false)
+  const router = useRouter()
+  const store = useUserStore()
 
-onMounted(async () => {
-  const initData = window.Telegram.WebApp.initDataUnsafe
-  const telegramUser = initData.user
-  const startParam = initData.start_param
+  const ready = ref(false)
 
-  if (startParam) {
-    await store.fetchUser(Number(startParam))
-    router.replace(`/share/${startParam}`)
-  } else if (telegramUser?.id) {
-    await store.fetchUser(telegramUser.id)
+  onMounted(async () => {
+    if (!window.Telegram || !window.Telegram.WebApp) {
+      window.location.href = 'https://t.me/BirthdayProfileBot'
+      return
+    }
 
-    if (store.user) {
-      router.replace('/profile')
-    } else {
+    window.Telegram.WebApp.ready?.()
+
+    const initData = window.Telegram.WebApp.initDataUnsafe
+    const telegramUser = initData.user
+    const startParam = initData.start_param
+
+    if (startParam) {
+      await store.fetchUser(Number(startParam))
+      router.replace(`/share/${startParam}`)
+    }
+    else if (telegramUser?.id) {
+      await store.fetchUser(telegramUser.id)
+
+      if (store.user) {
+        router.replace('/profile')
+      } else {
+        router.replace('/')
+      }
+    }
+    else {
       router.replace('/')
     }
-  } else {
-    router.replace('/')
-  }
 
-  ready.value = true
-})
+    ready.value = true
+  })
 </script>
