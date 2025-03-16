@@ -5,13 +5,14 @@
     email: "dvzvidrin48@gmail.com"
     project_dir: "/root/test-task-tg-profile"
     ssl_dir: "{{ project_dir }}/ssl"
+    certbot_webroot: "{{ project_dir }}/certbot/www"
     frontend_dir: "{{ project_dir }}/frontend"
     backend_dir: "{{ project_dir }}/backend"
     bot_dir: "{{ project_dir }}/bot"
     nginx_container: "telegram_profile_nginx"
 
   tasks:
-    - name: Обновляем APT и ставим зависимости
+    - name: Установка зависимостей
       apt:
         update_cache: yes
         name:
@@ -34,7 +35,7 @@
         repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
         state: present
 
-    - name: Устанавливаем Docker и Docker Compose CLI (plugin)
+    - name: Устанавливаем Docker и Docker Compose
       apt:
         update_cache: yes
         name:
@@ -82,28 +83,24 @@
         dest: "{{ project_dir }}/.env"
         mode: '0600'
 
-    - name: Останавливаем nginx контейнер перед выдачей сертификата
-      docker_container:
-        name: "{{ nginx_container }}"
-        state: stopped
-      ignore_errors: yes
+    - name: Создаем каталог для webroot Let's Encrypt
+      file:
+        path: "{{ certbot_webroot }}"
+        state: directory
+        mode: '0755'
 
-    - name: Получаем/обновляем SSL сертификат от Let's Encrypt
+    - name: Запускаем docker compose без nginx для SSL получения
+      command: docker compose up -d --build db backend bot frontend
+      args:
+        chdir: "{{ project_dir }}"
+
+    - name: Получаем/обновляем SSL сертификат от Let's Encrypt (webroot)
       command: >
-        certbot certonly --standalone
-        --preferred-challenges http
+        certbot certonly --webroot
+        --webroot-path {{ certbot_webroot }}
         -d {{ domain_name }} -d www.{{ domain_name }}
-        --agree-tos --email {{ email }} --non-interactive --force-renewal
-      register: certbot_result
-
-    - name: Показываем вывод certbot
-      debug:
-        var: certbot_result.stdout_lines
-
-    - name: Запускаем nginx контейнер
-      docker_container:
-        name: "{{ nginx_container }}"
-        state: started
+        --email {{ email }}
+        --agree-tos --non-interactive --force-renewal
 
     - name: Создаем симлинки на сертификаты для Nginx
       file:
@@ -111,11 +108,11 @@
         dest: "{{ ssl_dir }}/{{ item }}"
         state: link
         force: true
-      with_items:
+      loop:
         - fullchain.pem
         - privkey.pem
 
-    - name: Перезапускаем проект
+    - name: Запускаем весь проект с nginx
       command: docker compose up -d --build
       args:
         chdir: "{{ project_dir }}"
@@ -125,4 +122,4 @@
         name: "Auto renew SSL and restart nginx"
         minute: "0"
         hour: "3"
-        job: "docker stop {{ nginx_container }} && certbot renew --standalone && docker start {{ nginx_container }}"
+        job: "docker compose stop nginx && certbot renew --webroot --webroot-path {{ certbot_webroot }} && docker compose start nginx"
