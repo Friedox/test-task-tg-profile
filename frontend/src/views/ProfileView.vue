@@ -10,7 +10,6 @@
       <h2 class="text-xl font-semibold">{{ user.first_name }} {{ user.last_name }}</h2>
       <p class="text-gray-500">@{{ user.username }}</p>
 
-      <!-- Новый отсчет -->
       <div v-if="countdownText" class="mt-4 text-lg font-semibold text-blue-600 flex flex-col items-center">
         🎉
         <span v-if="isOwner">
@@ -20,11 +19,9 @@
           День рождения {{ user.first_name }} через
         </span>
 
-        <!-- Сам отсчет -->
         <span class="mt-1 text-2xl">{{ countdownText }}</span>
       </div>
 
-      <!-- Кнопки -->
       <button
         v-if="isOwner"
         @click="share"
@@ -67,7 +64,6 @@ const isOwner = computed(() => telegramUser.id === currentTelegramId.value)
 const user = computed(() => store.user)
 const API_URL = import.meta.env.VITE_API_URL
 
-// Счетчик обратного отсчета
 const countdownText = ref('')
 let countdownInterval: number | undefined
 
@@ -79,7 +75,6 @@ const startCountdown = () => {
     const birthDate = new Date(user.value!.birthday)
     birthDate.setFullYear(now.getFullYear())
 
-    // Если ДР в этом году прошло, берем следующий год
     if (birthDate < now) {
       birthDate.setFullYear(now.getFullYear() + 1)
     }
@@ -95,10 +90,9 @@ const startCountdown = () => {
 
   updateCountdown()
 
-  // Очищаем, чтобы не дублировать интервал
   if (countdownInterval) clearInterval(countdownInterval)
 
-  countdownInterval = setInterval(updateCountdown, 60000) // обновлять каждую минуту
+  countdownInterval = setInterval(updateCountdown, 60000)
 }
 
 const fetchAndCheckUser = async () => {
@@ -111,7 +105,7 @@ const fetchAndCheckUser = async () => {
       router.replace('/profile')
     }
   } else {
-    startCountdown() // запускаем отсчет после загрузки пользователя
+    startCountdown()
   }
 }
 
@@ -122,7 +116,6 @@ watch(() => route.params.telegram_id, async (newId) => {
   await fetchAndCheckUser()
 })
 
-// Очистка при уничтожении компонента
 onUnmounted(() => {
   if (countdownInterval) clearInterval(countdownInterval)
 })

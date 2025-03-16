@@ -9,7 +9,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432" # Можно убрать, если база доступна только в сети Docker
+      - "5432:5432"
 
   bot:
     build:

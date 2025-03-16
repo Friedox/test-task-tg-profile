@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.user import UserOut, UserBase
 from app.utils import calculate_countdown
-from app.db_helper import get_user_by_id, create_user, get_user_by_telegram_id
+from app.db_helper import create_user, get_user_by_telegram_id
 
 router = APIRouter()
 

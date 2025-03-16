@@ -17,11 +17,9 @@ onMounted(async () => {
   const startParam = initData.start_param
 
   if (startParam) {
-    // Открываем чужой профиль из ссылки
     await store.fetchUser(Number(startParam))
     router.replace(`/share/${startParam}`)
   } else if (telegramUser?.id) {
-    // Проверяем есть ли пользователь в базе
     await store.fetchUser(telegramUser.id)
 
     if (store.user) {

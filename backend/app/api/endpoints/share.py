@@ -6,6 +6,7 @@ router = APIRouter()
 
 BOT_TOKEN = settings.telegram_bot_token
 
+
 @router.post("/share_message/{telegram_id}")
 async def create_prepared_message(telegram_id: int):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/savePreparedInlineMessage"

@@ -19,7 +19,6 @@ router = Router()
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
-    # Create a button that opens your web app using the web_app parameter.
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Открыть WebApp", web_app=WebAppInfo(url=settings.webapp_url))]
     ])

@@ -2,11 +2,9 @@
   <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100">
     <h2 class="text-xl font-bold mb-6">Выберите дату рождения</h2>
 
-    <!-- Контейнер колесиков -->
     <div class="relative w-full max-w-md">
       <div class="flex justify-center bg-gradient-to-r from-purple-700 to-pink-500 p-4 rounded-lg shadow-lg">
 
-        <!-- День -->
         <div class="relative flex-1">
           <div ref="dayRef" class="scroll-container" @scroll="onScroll('day')">
             <div class="spacer"></div>
@@ -17,7 +15,6 @@
           </div>
         </div>
 
-        <!-- Месяц -->
         <div class="relative flex-1">
           <div ref="monthRef" class="scroll-container" @scroll="onScroll('month')">
             <div class="spacer"></div>
@@ -28,7 +25,6 @@
           </div>
         </div>
 
-        <!-- Год -->
         <div class="flex-1">
           <div ref="yearRef" class="scroll-container" @scroll="onScroll('year')">
             <div class="spacer"></div>
@@ -40,13 +36,11 @@
         </div>
       </div>
 
-      <!-- Горизонтальные линии выделения -->
       <div class="absolute top-1/2 left-0 right-0 pointer-events-none -translate-y-1/2">
         <div class="h-[40px] border-y-2 border-white/50"></div>
       </div>
     </div>
 
-    <!-- Кнопка сохранить -->
     <button
       @click="submit"
       class="mt-6 bg-green-500 text-white px-6 py-2 rounded w-48 disabled:bg-gray-400"
@@ -55,12 +49,10 @@
       {{ loading ? 'Сохраняем...' : 'Сохранить' }}
     </button>
 
-    <!-- Текущий выбор -->
     <div class="mt-4 text-gray-600">
       Вы выбрали: {{ formattedDate }}
     </div>
 
-    <!-- Ошибка -->
     <div v-if="error" class="mt-2 text-red-500">{{ error }}</div>
   </div>
 </template>
@@ -70,15 +62,12 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useUserStore } from '../store/user'
 import { useRouter } from 'vue-router'
 
-// 📍 Хуки pinia + vue-router
 const store = useUserStore()
 const router = useRouter()
 
-// 📍 Состояния кнопки
 const loading = ref(false)
 const error = ref('')
 
-// 📍 Константы выбора дат
 const ITEM_HEIGHT = 40
 const days = Array.from({ length: 31 }, (_, i) => i + 1)
 const months = [
@@ -88,24 +77,20 @@ const months = [
 const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 100 }, (_, i) => currentYear - i)
 
-// 📍 Выбранные значения
 const selectedDay = ref(days[0])
 const selectedMonth = ref(1)
 const selectedYear = ref(years[0])
 
-// 📍 Форматированная дата для вывода
 const formattedDate = computed(() => {
   const monthNum = selectedMonth.value.toString().padStart(2, '0')
   const dayNum = selectedDay.value.toString().padStart(2, '0')
   return `${dayNum}.${monthNum}.${selectedYear.value}`
 })
 
-// 📍 refs для scroll-container
 const dayRef = ref<HTMLDivElement | null>(null)
 const monthRef = ref<HTMLDivElement | null>(null)
 const yearRef = ref<HTMLDivElement | null>(null)
 
-// 📍 Основная логика по onScroll
 const onScroll = (type: 'day' | 'month' | 'year') => {
   nextTick(() => {
     let container: HTMLDivElement | null
@@ -142,7 +127,7 @@ const onScroll = (type: 'day' | 'month' | 'year') => {
       }
     })
 
-    const value = items[closestIndex] // коррекция индекса с учетом spacer
+    const value = items[closestIndex]
     if (value === undefined) return
 
     if (type === 'day') selectedDay.value = value
@@ -151,14 +136,12 @@ const onScroll = (type: 'day' | 'month' | 'year') => {
   })
 }
 
-// 📍 Скролл к выбранному при загрузке
 const scrollToSelected = (container: HTMLDivElement | null, items: number[], value: number) => {
   if (!container) return
   const index = items.indexOf(value)
   container.scrollTop = (index) * ITEM_HEIGHT
 }
 
-// 📍 Сабмит с отправкой на бэкенд и переходом в профиль
 const submit = async () => {
   loading.value = true
   error.value = ''
