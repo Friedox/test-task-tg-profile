@@ -1,18 +1,14 @@
 - hosts: project_server
   become: yes
   vars:
-    domain_name: "friedox.online"
-    email: "dvzvidrin48@gmail.com"
     project_dir: "/root/test-task-tg-profile"
-    ssl_dir: "{{ project_dir }}/certbot/conf"
-    certbot_webroot: "{{ project_dir }}/certbot/www"
+    ssl_dir: "{{ project_dir }}/ssl"
     frontend_dir: "{{ project_dir }}/frontend"
     backend_dir: "{{ project_dir }}/backend"
     bot_dir: "{{ project_dir }}/bot"
 
   tasks:
-
-    - name: Установка системных пакетов
+    - name: Обновляем APT и ставим зависимости
       apt:
         update_cache: yes
         name:
@@ -20,6 +16,8 @@
           - curl
           - gnupg
           - lsb-release
+          - certbot
+          - openssl
         state: present
 
     - name: Добавляем Docker GPG ключ
@@ -32,7 +30,7 @@
         repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
         state: present
 
-    - name: Устанавливаем Docker и Docker Compose
+    - name: Устанавливаем Docker и Docker Compose CLI (plugin)
       apt:
         update_cache: yes
         name:
@@ -80,47 +78,22 @@
         dest: "{{ project_dir }}/.env"
         mode: '0600'
 
-    - name: Создаем каталог для webroot Let's Encrypt
-      file:
-        path: "{{ certbot_webroot }}"
-        state: directory
-        mode: '0755'
-
-    - name: Создаем каталог для сертификатов Let's Encrypt
+    - name: Создаем папку для самоподписанных сертификатов
       file:
         path: "{{ ssl_dir }}"
         state: directory
         mode: '0755'
 
-    - name: Стоп docker compose перед получением сертификата
-      command: docker compose down
-      args:
-        chdir: "{{ project_dir }}"
-
-    - name: Запускаем nginx для верификации
-      command: docker compose up -d nginx
-      args:
-        chdir: "{{ project_dir }}"
-
-    - name: Получаем/обновляем SSL сертификат от Let's Encrypt через Docker Certbot
+    - name: Генерим самоподписанные SSL сертификаты для фронта
       command: >
-        docker run --rm
-        -v {{ ssl_dir }}:/etc/letsencrypt
-        -v {{ certbot_webroot }}:/var/www/certbot
-        certbot/certbot certonly --webroot
-        --webroot-path /var/www/certbot
-        -d {{ domain_name }} -d www.{{ domain_name }}
-        --email {{ email }}
-        --agree-tos --non-interactive --force-renewal
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048
+        -keyout {{ ssl_dir }}/frontend-selfsigned.key
+        -out {{ ssl_dir }}/frontend-selfsigned.crt
+        -subj "/C=US/ST=State/L=City/O=Company/CN={{ inventory_hostname }}"
+      args:
+        creates: "{{ ssl_dir }}/frontend-selfsigned.crt"
 
-    - name: Запускаем docker compose со всеми сервисами
+    - name: Запускаем docker compose up -d --build
       command: docker compose up -d --build
       args:
         chdir: "{{ project_dir }}"
-
-    - name: Настраиваем cron на авто renew сертификатов + рестарт nginx
-      cron:
-        name: "Auto renew SSL certbot + nginx restart"
-        minute: "0"
-        hour: "3"
-        job: "docker run --rm -v {{ ssl_dir }}:/etc/letsencrypt -v {{ certbot_webroot }}:/var/www/certbot certbot/certbot renew --webroot --webroot-path /var/www/certbot && docker compose restart nginx"
