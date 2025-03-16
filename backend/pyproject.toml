@@ -1,0 +1,15 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Backend service for managing Telegram user profiles and birthdays"
+authors = ["Dmitry <dvzvidrin48@gmail.com>"]
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "fastapi>=0.115.11",
+    "pydantic-settings>=2.8.1",
+    "requests>=2.32.3",
+    "tortoise-orm>=0.24.2",
+    "uvicorn>=0.34.0",
+]

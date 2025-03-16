@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.md
+.git/
+tests/
+.env
+.env.*
+frontend/Dockerfile
+docker-compose.yml
