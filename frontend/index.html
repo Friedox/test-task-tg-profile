@@ -10,8 +10,10 @@
   <body>
     <div id="app"></div>
         <script>
-          if (!window.Telegram || !window.Telegram.WebApp) {
-            window.location.href = 'https://t.me/BirthdayProfileBot'
+          const isNotTelegramWebApp = !window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initData || window.Telegram.WebApp.initData === '';
+
+          if (isNotTelegramWebApp) {
+            window.location.href = 'https://t.me/BirthdayProfileBot';
           }
         </script>
     <script type="module" src="/src/main.ts"></script>
