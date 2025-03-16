@@ -1,3 +1,5 @@
+// src/types/telegram.d.ts
+
 export {}
 
 declare global {
@@ -21,6 +23,8 @@ declare global {
       messageId: string,
       callback?: (success: boolean) => void
     ) => void
+
+    ready?: () => void
   }
 
   interface TelegramUser {
