@@ -1,6 +1,8 @@
 - hosts: project_server
   become: yes
   vars:
+    domain_name: "friedox.online"
+    email: "dvzvidrin48@gmail.com"
     project_dir: "/root/test-task-tg-profile"
     ssl_dir: "{{ project_dir }}/ssl"
     frontend_dir: "{{ project_dir }}/frontend"
@@ -17,6 +19,7 @@
           - gnupg
           - lsb-release
           - certbot
+          - python3-certbot-nginx
           - openssl
         state: present
 
@@ -78,37 +81,21 @@
         dest: "{{ project_dir }}/.env"
         mode: '0600'
 
-    - name: Создаем папку для самоподписанных сертификатов
-      file:
-        path: "{{ ssl_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Генерим самоподписанные SSL сертификаты для фронта
+    - name: Получаем SSL сертификат от Let's Encrypt
       command: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048
-        -keyout {{ ssl_dir }}/frontend-selfsigned.key
-        -out {{ ssl_dir }}/frontend-selfsigned.crt
-        -subj "/C=US/ST=State/L=City/O=Company/CN={{ inventory_hostname }}"
+        certbot certonly --nginx -d {{ domain_name }} -d www.{{ domain_name }} --non-interactive --agree-tos -m {{ email }}
       args:
-        creates: "{{ ssl_dir }}/frontend-selfsigned.crt"
+        creates: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
 
-#    - name: Копируем Nginx конфиг для фронта
-#      template:
-#        src: nginx-frontend.conf.j2
-#        dest: /etc/nginx/sites-available/frontend.conf
-#
-#    - name: Включаем конфиг Nginx
-#      file:
-#        src: /etc/nginx/sites-available/frontend.conf
-#        dest: /etc/nginx/sites-enabled/frontend.conf
-#        state: link
-#        force: yes
-#
-#    - name: Перезапускаем Nginx
-#      service:
-#        name: nginx
-#        state: restarted
+    - name: Создаем симлинки на сертификаты для nginx
+      file:
+        src: "/etc/letsencrypt/live/{{ domain_name }}/{{ item }}"
+        dest: "{{ ssl_dir }}/{{ item }}"
+        state: link
+        force: true
+      with_items:
+        - fullchain.pem
+        - privkey.pem
 
     - name: Запускаем docker compose up -d --build
       command: docker compose up -d --build
