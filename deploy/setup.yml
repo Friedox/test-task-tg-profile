@@ -6,6 +6,8 @@
     frontend_dir: "{{ project_dir }}/frontend"
     backend_dir: "{{ project_dir }}/backend"
     bot_dir: "{{ project_dir }}/bot"
+    domains: "friedox.online"
+    email: "dvzvidrin48@gmail.com"
 
   tasks:
     - name: Обновляем APT и ставим зависимости
@@ -17,6 +19,7 @@
           - gnupg
           - lsb-release
           - certbot
+          - python3-certbot-nginx
           - openssl
         state: present
 
@@ -78,20 +81,39 @@
         dest: "{{ project_dir }}/.env"
         mode: '0600'
 
-    - name: Создаем папку для самоподписанных сертификатов
+    - name: Создаем папку для Let's Encrypt
       file:
-        path: "{{ ssl_dir }}"
+        path: /etc/letsencrypt
         state: directory
         mode: '0755'
 
-    - name: Генерим самоподписанные SSL сертификаты для фронта
-      command: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048
-        -keyout {{ ssl_dir }}/frontend-selfsigned.key
-        -out {{ ssl_dir }}/frontend-selfsigned.crt
-        -subj "/C=US/ST=State/L=City/O=Company/CN={{ inventory_hostname }}"
-      args:
-        creates: "{{ ssl_dir }}/frontend-selfsigned.crt"
+    - name: Получаем SSL сертификаты через Certbot (только если их нет)
+      command: |
+        certbot certonly --nginx --non-interactive --agree-tos \
+        -m {{ email }} \
+        -d {{ domains }} \
+        --keep-until-expiring \
+        --dry-run
+      ignore_errors: yes
+      register: certbot_dry_run
+      changed_when: false
+
+    - name: Получаем SSL сертификаты через Certbot (реальный запуск)
+      command: |
+        certbot certonly --nginx --non-interactive --agree-tos \
+        -m {{ email }} \
+        -d {{ domains }} \
+        --keep-until-expiring
+      when: certbot_dry_run is failed
+
+    - name: Добавляем cron для обновления сертификатов
+      cron:
+        name: "Certbot renewal"
+        user: root
+        job: "certbot renew --quiet --post-hook 'docker restart telegram_profile_nginx'"
+        minute: "0"
+        hour: "3"
+        weekday: "0"
 
     - name: Запускаем docker compose up -d --build
       command: docker compose up -d --build
