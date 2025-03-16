@@ -16,34 +16,29 @@
   const ready = ref(false)
 
   onMounted(async () => {
-    if (!window.Telegram || !window.Telegram.WebApp) {
-      window.location.href = 'https://t.me/BirthdayProfileBot'
-      return
-    }
+  const initData = window.Telegram?.WebApp?.initData ?? '';
 
-    window.Telegram.WebApp.ready?.()
+  if (!initData || initData === '') {
+    window.location.href = 'https://t.me/BirthdayProfileBot';
+    return;
+  }
 
-    const initData = window.Telegram.WebApp.initDataUnsafe
-    const telegramUser = initData.user
-    const startParam = initData.start_param
+  window.Telegram.WebApp.ready?.();
 
-    if (startParam) {
-      await store.fetchUser(Number(startParam))
-      router.replace(`/share/${startParam}`)
-    }
-    else if (telegramUser?.id) {
-      await store.fetchUser(telegramUser.id)
+  const telegramUser = window.Telegram.WebApp.initDataUnsafe?.user;
+  const startParam = window.Telegram.WebApp.initDataUnsafe?.start_param;
 
-      if (store.user) {
-        router.replace('/profile')
-      } else {
-        router.replace('/')
-      }
-    }
-    else {
-      router.replace('/')
-    }
+  if (startParam) {
+    await store.fetchUser(Number(startParam));
+    router.replace(`/share/${startParam}`);
+  } else if (telegramUser?.id) {
+    await store.fetchUser(telegramUser.id);
+    router.replace('/profile');
+  } else {
+    router.replace('/');
+  }
 
-    ready.value = true
-  })
+  ready.value = true;
+  }
+ );
 </script>
